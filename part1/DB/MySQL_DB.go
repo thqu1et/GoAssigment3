@@ -1,34 +1,51 @@
 package DB
 
 import (
+	"context"
 	"fmt"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
+	"time"
 )
 
-func ConnectMySql() (*gorm.DB, error) {
+func DBinstance() (*mongo.Client, error) {
 	err := godotenv.Load("/Users/askarabylkhaiyrov/Desktop/GoLang/assigment3/part1/DB/.env")
-
 	if err != nil {
-		return nil, fmt.Errorf("Error loading .env file: %w", err)
+		return nil, err
 	}
 
-	username := os.Getenv("MYSQL_USER")
-	password := os.Getenv("MYSQL_PASSWORD")
-	host := os.Getenv("MYSQL_HOST")
-	port := os.Getenv("MYSQL_PORT")
-	dbName := os.Getenv("MYSQL_DATABASE")
+	MongoDb := os.Getenv("MONGODBURL")
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		username, password, host, port, dbName)
+	client, err := mongo.NewClient(options.Client().ApplyURI(MongoDb))
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	err = client.Connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Connected!!")
 
+	return client, nil
+}
+
+var Client *mongo.Client
+var err error
+
+func init() {
+	Client, err = DBinstance()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return db, nil
+}
+
+func OpenCollection(client *mongo.Client, collectionName string) *mongo.Collection {
+	collection := client.Database("Cluster0").Collection(collectionName)
+	return collection
 }
