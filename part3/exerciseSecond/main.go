@@ -1,59 +1,53 @@
 package main
 
 import (
-	"log"
-	"os"
+	"github.com/sirupsen/logrus"
 )
 
-type AppLogger struct {
-	logger *log.Logger
-}
-
-func NewAppLogger() *AppLogger {
-	return &AppLogger{logger: log.New(os.Stdout, "", 0)}
-}
-
-func (al *AppLogger) Info(msg string, fields map[string]interface{}) {
-	al.log("INFO", msg, fields)
-}
-
-func (al *AppLogger) Error(msg string, fields map[string]interface{}) {
-	al.log("ERROR", msg, fields)
-}
-
-func (al *AppLogger) log(level, msg string, fields map[string]interface{}) {
-	// Add common metadata
-	fields["level"] = level
-
-	logEntry := make(map[string]interface{})
-	for k, v := range fields {
-		logEntry[k] = v
-	}
-	al.logger.Println(logEntry)
-}
-
 func main() {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.JSONFormatter{})
 
-	logger := NewAppLogger()
-	logger.Info("Starting application", nil)
+	logger.SetLevel(logrus.DebugLevel)
 
-	result := performOperation(5, 2, logger)
-	logger.Info("Result of operation", map[string]interface{}{"result": result})
+	logger.WithFields(logrus.Fields{
+		"app": "exercise-app",
+	}).Info("Starting application...")
 
-	err := simulateError(logger)
-	if err != nil {
-		logger.Error("Error occurred", map[string]interface{}{"error": err.Error()})
+	result := performOperation(5, 0)
+	logger.WithFields(logrus.Fields{
+		"operation": "division",
+		"result":    result,
+	}).Info("Operation performed")
+
+	if err := performOperation(10, 0); err != nil {
+		logger.WithFields(logrus.Fields{
+			"error": err,
+		}).Error("Error performing operation")
 	}
 
-	logger.Info("Application finished", nil)
+	logger.WithFields(logrus.Fields{
+		"app": "exercise-app",
+	}).Info("Application finished.")
 }
 
-func performOperation(a, b int, logger *AppLogger) int {
-	logger.Info("Performing operation", map[string]interface{}{"operands": []int{a, b}})
-	return a + b
-}
-
-func simulateError(logger *AppLogger) error {
-	logger.Info("Simulating error", nil)
+func performOperation(a, b int) error {
+	if b == 0 {
+		return ErrDivisionByZero
+	}
 	return nil
+}
+
+var ErrDivisionByZero = NewAppError("division by zero")
+
+type AppError struct {
+	message string
+}
+
+func NewAppError(message string) *AppError {
+	return &AppError{message: message}
+}
+
+func (e *AppError) Error() string {
+	return e.message
 }
